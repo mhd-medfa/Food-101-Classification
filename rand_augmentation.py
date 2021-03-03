@@ -7,9 +7,24 @@ from PIL import Image, ImageEnhance, ImageOps
 import numpy as np
 import random
 
+#==============
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras.preprocessing.image import load_img, img_to_array
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+import matplotlib.pyplot as plt
+import requests
+import random
+#==============
 
-class Rand_Augment():
-    def __init__(self, Numbers=None, max_Magnitude=None):
+class Rand_Augment(ImageDataGenerator):
+    def __init__(self, Numbers=None, max_Magnitude=None, **kwargs):
+        '''
+        Custom image data generator.
+        Behaves like ImageDataGenerator, but allows color augmentation.
+        '''
+        super().__init__(preprocessing_function=self.__call__, **kwargs)
+        
         self.transforms = ['autocontrast', 'equalize', 'rotate', 'solarize', 'color', 'posterize',
                            'contrast', 'brightness', 'sharpness', 'shearX', 'shearY', 'translateX', 'translateY']
         if Numbers is None:
@@ -80,11 +95,19 @@ class Rand_Augment():
         return [(op, Magnitude) for (op, Magnitude) in zip(sampled_ops, M)]
 
     def __call__(self, image):
-        operations = self.rand_augment()
-        for (op_name, M) in operations:
-            operation = self.func[op_name]
-            mag = self.ranges[op_name][M]
-            image = operation(image, mag)
+        try:
+            operations = self.rand_augment()
+            for (op_name, M) in operations:
+                operation = self.func[op_name]
+                mag = self.ranges[op_name][M]
+                image = operation(image, mag)
+        except:
+            image = tf.keras.preprocessing.image.array_to_img(image)
+            operations = self.rand_augment()
+            for (op_name, M) in operations:
+                operation = self.func[op_name]
+                mag = self.ranges[op_name][M]
+                image = operation(image, mag)
         return image
 
     def rotate_with_fill(self, img, magnitude):
@@ -103,3 +126,36 @@ class Rand_Augment():
         mag = self.ranges[op_name][M]
         image = operation(image, mag)
         return image
+
+def plot_augmentation(datagen, data, n_rows=1, n_cols=5):
+    n_images = n_rows * n_cols
+    gen_flow = datagen.flow(data)
+
+    aspect_ratio = data.shape[1] / data.shape[2]
+    base_size = 2
+    fig_size = (n_cols*base_size/aspect_ratio, n_rows*base_size)
+    fig = plt.figure(figsize=fig_size)
+
+    for image_index in range(n_images):
+        image = next(gen_flow)
+        plt.subplot(n_rows, n_cols, image_index+1)
+        plt.axis('off')
+        plt.imshow(image[0], vmin=0, vmax=255)
+    fig.tight_layout(pad=0.0)
+
+if __name__ == "__main__":
+    # url = 'https://github.com/dufourpascal/stepupai/raw/master/tutorials/data_augmentation/image_town.jpg'
+    # r = requests.get(url, allow_redirects=True)
+    # open('image.jpg', 'wb').write(r.content)
+
+    image = load_img('data/waffles.jpg')
+    image = img_to_array(image).astype(int)
+    data = np.expand_dims(image, 0)
+    plt.axis('off')
+    plt.imshow(data[0])
+    plt.show()
+
+    datagen = Rand_Augment(Numbers=4, max_Magnitude=10)
+    datagen.fit(data)
+    plot_augmentation(datagen, data, n_rows=2, n_cols=6)
+    plt.show()
