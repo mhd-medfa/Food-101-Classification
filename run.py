@@ -9,6 +9,9 @@
 
 # In[1]:
 
+# Check flags that fits your purpose of running the code
+load_model_flag = True
+train_model_flag = False
 
 # Check if GPU is enabled
 import tensorflow as tf
@@ -20,6 +23,8 @@ print(tf.test.gpu_device_name())
 
 from rand_augmentation import *
 from utils import *
+
+
 # In[3]:
 
 
@@ -470,43 +475,43 @@ validation_generator = test_datagen.flow_from_directory(
     class_mode='categorical')
 
 
-# inception = InceptionV3(weights='imagenet', include_top=False)
-efficient = keras.applications.EfficientNetB3(include_top=False,
-                                                weights='imagenet', drop_connect_rate=0.4)
-x = efficient.output
-# x = inception.output
-# x = GlobalAveragePooling2D()(x)
+inception = InceptionV3(weights='imagenet', include_top=False)
+# efficient = keras.applications.EfficientNetB3(include_top=False,
+#                                                 weights='imagenet', drop_connect_rate=0.4)
+# x = efficient.output
+x = inception.output
 x = GlobalAveragePooling2D()(x)
 x = Dense(128,activation='relu')(x)
 x = Dropout(0.2)(x)
 
 predictions = Dense(n,kernel_regularizer=regularizers.l2(0.005), activation='softmax')(x)
 
-model = Model(inputs=efficient.input, outputs=predictions)
-# model.compile(optimizer=SGD(lr=0.0001, momentum=0.9), loss='categorical_crossentropy', metrics=['accuracy'])
-model.compile(optimizer=Adam  (), loss='categorical_crossentropy', metrics=['accuracy'])
-
-# model = keras.models.load_model('best_model_101class.hdf5')
-checkpointer = ModelCheckpoint(filepath='best_model_101class.hdf5', verbose=1, save_best_only=True)
-csv_logger = CSVLogger('history.log')
-
-history_11class = model.fit(train_generator,
-                    steps_per_epoch = nb_train_samples // batch_size,
-                    validation_data=validation_generator,
-                    validation_steps=nb_validation_samples // batch_size,
-                    epochs=40,
-                    verbose=1,
-                    callbacks=[csv_logger, checkpointer])
-
-model.save('model_trained_101class.hdf5')
-
-
-# In[ ]:
+model = Model(inputs=inception.input, outputs=predictions)
 
 
 
-plot_accuracy(history_11class,'FOOD101-EfficientNetB3')
-plot_loss(history_11class,'FOOD101-EfficientNetB3')
+if load_model_flag==True:
+	model = keras.models.load_model('best_model_101class.hdf5')
+elif load_model_flag==False:
+	model.compile(optimizer=SGD(lr=0.0001, momentum=0.9), loss='categorical_crossentropy', metrics=['accuracy'])
+	# model.compile(optimizer=Adam  (), loss='categorical_crossentropy', metrics=['accuracy'])
+
+if train_model_flag== True:
+	checkpointer = ModelCheckpoint(filepath='best_model_101class.hdf5', verbose=1, save_best_only=True)
+	csv_logger = CSVLogger('history.log')
+
+	history_101class = model.fit(train_generator,
+			    steps_per_epoch = nb_train_samples // batch_size,
+			    validation_data=validation_generator,
+			    validation_steps=nb_validation_samples // batch_size,
+			    epochs=40,
+			    verbose=1,
+			    callbacks=[csv_logger, checkpointer])
+
+	model.save('model_trained_101class.hdf5')
+
+	plot_accuracy(history_101class,'FOOD101-InceptionV3')
+	plot_loss(history_101class,'FOOD101-InceptionV3')
 
 
 # In[ ]:
