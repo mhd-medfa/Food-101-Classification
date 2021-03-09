@@ -562,24 +562,44 @@ from tensorflow.keras.models import load_model
 K.clear_session()
 model_best = load_model('best_model_101class.hdf5',compile = False)
 # In[ ]:
+y_true = []
+batches = 0
+for gen in tqdm(validation_generator):
+  _,y = gen
+  for yi in y:
+    y_true.append(np.argmax(yi))
+  batches += 1
+  if batches >= nb_validation_samples / batch_size:
+    # we need to break the loop by hand because
+    # the generator loops indefinitely
+    break
+# In[ ]:
 predictions = []
 acc_history = []
 
 transforms = ['rotate', 'shearX', 'shearY', 'translateX', 'translateY']
 
-datagen = Test_Time_Augmentation(Magnitude=3, OP_NAME=transforms[0])
-data_generator = datagen.flow_from_directory(
-                    validation_data_dir,
-                    target_size=(img_height, img_width),
-                    batch_size=batch_size,
-                    class_mode='categorical')
+
 csv_logger = CSVLogger('history.log')
 
-prediction = model_best.predict_generator(data_generator, verbose=1,callbacks=[csv_logger])
-# predictions.append(prediction)
+prediction = model_best.predict_generator(validation_generator, verbose=1,callbacks=[csv_logger])
+predictions.append(prediction)
+for transform in transforms:
+  datagen = Test_Time_Augmentation(Magnitude=3, OP_NAME=transform)
+  data_generator = datagen.flow_from_directory(
+                      validation_data_dir,
+                      target_size=(img_height, img_width),
+                      batch_size=batch_size,
+                      class_mode='categorical')
+
+  prediction = model_best.predict_generator(data_generator, verbose=1,callbacks=[csv_logger])
+  predictions.append(prediction)
+
+predictions = np.stack(predictions)
 
 plot_prediction_accuracy(prediction,'FOOD101-InceptionV3')
 plot_prediction_loss(prediction,'FOOD101-InceptionV3')
+# acc_history = agg_preds(predictions)
 # In[ ]:
 
 
