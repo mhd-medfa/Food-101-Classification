@@ -12,6 +12,20 @@
 
 # Check if GPU is enabled
 import tensorflow as tf
+seed_value=42
+
+import os
+os.environ['PYTHONHASHSEED']=str(seed_value)
+
+import random
+random.seed(seed_value)
+
+import numpy as np
+np.random.seed(seed_value)
+
+import tensorflow as tf
+tf.random.set_seed(seed_value)
+
 config = tf.compat.v1.ConfigProto()
 config.gpu_options.allow_growth = True
 sess = tf.compat.v1.Session(config=config)
@@ -26,7 +40,9 @@ import csv
 import math
 import scipy as sp
 from tqdm import tqdm
+import json
 from tta import Test_Time_Augmentation
+
 # In[3]:
 
 
@@ -562,6 +578,7 @@ from tensorflow.keras.models import load_model
 K.clear_session()
 model_best = load_model('best_model_101class.hdf5',compile = False)
 # In[ ]:
+y_trues = []
 y_true = []
 batches = 0
 for gen in tqdm(validation_generator):
@@ -573,9 +590,13 @@ for gen in tqdm(validation_generator):
     # we need to break the loop by hand because
     # the generator loops indefinitely
     break
+
+y_trues.extend(y_true)
+
+
 # In[ ]:
 predictions = []
-acc_history = []
+acc_history = {}
 
 transforms = ['rotate', 'shearX', 'shearY', 'translateX', 'translateY']
 
@@ -584,15 +605,38 @@ csv_logger = CSVLogger('history.log')
 
 prediction = model_best.predict_generator(validation_generator, verbose=1,callbacks=[csv_logger])
 predictions.append(prediction)
-for transform in transforms:
+k = (np.argmax(prediction, axis=-1)==y_true)
+acc = sum(k)/len(k)
+acc_history["base"] = acc
+for idx, transform in enumerate(transforms):
   datagen = Test_Time_Augmentation(Magnitude=3, OP_NAME=transform)
   data_generator = datagen.flow_from_directory(
                       validation_data_dir,
                       target_size=(img_height, img_width),
                       batch_size=batch_size,
                       class_mode='categorical')
+  
+  y_true = []
+  batches = 0
+  for gen in tqdm(data_generator):
+    _,y = gen
+    for yi in y:
+      y_true.append(np.argmax(yi))
+    batches += 1
+    if batches >= nb_validation_samples / batch_size:
+      # we need to break the loop by hand because
+      # the generator loops indefinitely
+      break
+  y_trues.extend(y_true)
 
   prediction = model_best.predict_generator(data_generator, verbose=1,callbacks=[csv_logger])
+  k = (np.argmax(prediction, axis=-1)==y_true)
+  acc = sum(k)/len(k)
+  acc_history[transform]=acc
+
+  with open('tta_acc_history.json', 'w') as fp:
+    json.dump(acc_history, fp)
+
   predictions.append(prediction)
 
 predictions = np.stack(predictions)
