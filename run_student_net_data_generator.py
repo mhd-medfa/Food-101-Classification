@@ -38,6 +38,7 @@ import json
 from tta import Test_Time_Augmentation
 import os
 from tensorflow.keras.preprocessing import image
+from PIL import Image
 
 
 
@@ -103,7 +104,6 @@ plt.tight_layout()
 
 # Helper method to split dataset into train and test folders
 from shutil import copy
-from IPython.display import clear_output
 def prepare_data(filepath, src,dest):
   classes_images = defaultdict(list)
   with open(filepath, 'r') as txt:
@@ -118,8 +118,21 @@ def prepare_data(filepath, src,dest):
       os.makedirs(os.path.join(dest,food))
     for i in classes_images[food]:
       copy(os.path.join(src,food,i), os.path.join(dest,food,i))
-  clear_output()
   print("Copying Done!")
+
+
+# Helper method to create train_mini and test_mini data samples
+def pseudo_labelled_dataset(food_images, food_labels, dest):
+  if not os.path.exists(dest):
+    os.makedirs(dest)
+  for label, img in zip(food_labels,food_images) :
+    print("Copying images into",label)
+    if not os.path.exists(dest+'/'+label):
+      os.makedirs(dest+'/'+label)
+    file_name = dest+'/'+label+'/'+str(len(os.listdir(dest+'/'+label)))+'.jpg'
+    # np.save(file_name, img)
+    im = Image.fromarray(img.astype('uint8'))
+    im.save(file_name)
 
 
 
@@ -300,8 +313,8 @@ from tensorflow import keras
 K.clear_session()
 
 n_classes = n
-# img_width, img_height = 299, 299
-img_width, img_height = 300, 300
+img_width, img_height = 299, 299
+# img_width, img_height = 300, 300
 
 train_data_dir = 'food-101/train'
 validation_data_dir = 'food-101/test'
@@ -337,66 +350,89 @@ model.add(Dense(n,kernel_regularizer=regularizers.l2(0.005), activation='softmax
 # Loading the best saved model to make predictions
 from tensorflow.keras.models import load_model
 K.clear_session()
-model_best = load_model('best_model_101class_rand_augment_final.hdf5',compile = False)
+model_best = load_model('best_model_101class_data_aug_lvl_2.hdf5',compile = False)
 y_trues = []
 y_true = []
-batches = 0
+# batches = 0
+# for gen in tqdm(validation_generator):
+#   _,y = gen
+#   for yi in y:
+#     y_true.append(np.argmax(yi))
+#   batches += 1
+#   if batches >= nb_validation_samples / batch_size:
+#     # we need to break the loop by hand because
+#     # the generator loops indefinitely
+#     break
+
+# y_trues.extend(y_true)
+
+
+predictions = []
+y_train_dummies = []
+y_student_all_dummy_label = []
+acc_history = {}
+batches=0
 for gen in tqdm(validation_generator):
-  _,y = gen
-  for yi in y:
-    y_true.append(np.argmax(yi))
+  X,_ = gen
+  y_pred = model_best.predict(X, verbose=1)
+  #Thresholding
+  threhold = 0.9
+  y_train_dummy_th =  y_pred[np.max(y_pred, axis=1) > threhold]
+  X_train_th = X[np.max(y_pred, axis=1) > threhold]
+  dest_train = 'food-101/train_noisy_student'
+  y_train_dummy = []
+  prediction = []
+  y_student_dummy_label = []
+  for yi in y_train_dummy_th:
+    prediction.append(yi)
+    y_train_dummy.append(foods_sorted[np.argmax(yi)])
+    y_student_dummy_label.append(np.argmax(yi))
+  y_train_dummies.extend(y_train_dummy)
+  predictions.extend(prediction)
+  y_student_all_dummy_label.extend(y_student_dummy_label)
+  pseudo_labelled_dataset(X_train_th, y_train_dummy,dest_train)
   batches += 1
   if batches >= nb_validation_samples / batch_size:
     # we need to break the loop by hand because
     # the generator loops indefinitely
     break
 
-y_trues.extend(y_true)
+u, counts = np.unique(predictions, return_counts=True)
+
+print(u, counts)
+
+#Calculate the maximum number of counts
+student_label_max =  max(counts)
+
+print("max count:")
+print(student_label_max)
 
 
-predictions = []
-acc_history = {}
 
-transforms = ['rotate', 'shearX', 'shearY', 'translateX', 'translateY']
+#Separate numpy array for each label
+y_student_per_label = []
+y_student_per_img_path = []
 
+for i in range(101):
+    temp_l = predictions[y_student_all_dummy_label == i]
+    print(i, ":", temp_l.shape)
+    y_student_per_label.append(temp_l)    
 
-prediction = model_best.predict_generator(validation_generator, verbose=1)
-predictions.append(prediction)
-k = (np.argmax(prediction, axis=-1)==y_true)
-acc = sum(k)/len(k)
-acc_history["base"] = acc
-for idx, transform in enumerate(transforms):
-  datagen = Test_Time_Augmentation(Magnitude=3, OP_NAME=transform)
-  data_generator = datagen.flow_from_directory(
-                      validation_data_dir,
-                      target_size=(img_height, img_width),
-                      batch_size=batch_size,
-                      class_mode='categorical')
-  
-  y_true = []
-  batches = 0
-  for gen in tqdm(data_generator):
-    _,y = gen
-    for yi in y:
-      y_true.append(np.argmax(yi))
-    batches += 1
-    if batches >= nb_validation_samples / batch_size:
-      # we need to break the loop by hand because
-      # the generator loops indefinitely
-      break
-  y_trues.extend(y_true)
+#Copy data for maximum count on each label
+y_student_per_label_add = []
+y_student_per_img_add = []
 
-  prediction = model_best.predict_generator(data_generator, verbose=1,callbacks=[csv_logger])
-  k = (np.argmax(prediction, axis=-1)==y_true)
-  acc = sum(k)/len(k)
-  acc_history[transform]=acc
+# for i in range(101):
+#     num = y_student_per_label[i].shape[0]
+#     temp_l = y_student_per_label[i]
+#     add_num = student_label_max - num
+#     q, mod = divmod(add_num, num)
+#     print(q, mod)
+#     temp_l_tile = np.tile(temp_l, (q+1, 1))
+#     temp_i_tile = np.tile(temp_i, (q+1, 1, 1, 1))
+#     temp_l_add = temp_l[:mod]
+#     temp_i_add = temp_i[:mod]
+#     y_student_per_label_add.append(np.concatenate([temp_l_tile, temp_l_add], axis=0))
+#     y_student_per_img_add.append(np.concatenate([temp_i_tile, temp_i_add], axis=0))
 
-  with open('tta_acc_history.json', 'w') as fp:
-    json.dump(acc_history, fp)
-
-  predictions.append(prediction)
-
-predictions = np.stack(predictions)
-
-# acc_history = agg_preds(predictions)
 
