@@ -271,7 +271,7 @@ import os
 
 def predict_class(model, images, show = True):
   for img in images:
-    img = image.load_img(img, target_size=(299, 299))
+    img = image.load_img(img, target_size=(300, 300))
     img = image.img_to_array(img)                    
     img = np.expand_dims(img, axis=0)         
     img /= 255.                                      
@@ -421,7 +421,7 @@ train_data_dir = 'food-101/train'
 validation_data_dir = 'food-101/test'
 nb_train_samples = 75750 #8250 #75750
 nb_validation_samples = 25250 #2750 #25250
-batch_size = 8
+batch_size = 16
 
 # train_datagen = ImageDataGenerator(
 #     rescale=1. / 255,
@@ -429,7 +429,7 @@ batch_size = 8
 #     zoom_range=0.2,
 #     horizontal_flip=True)
 
-train_datagen = Rand_Augment(Numbers=4, max_Magnitude=10)
+train_datagen = Rand_Augment(Numbers=2, max_Magnitude=10)
 # train_datagen = ImageDataGenerator(
 #   rotation_range=30,
 # 	zoom_range=0.2,
@@ -492,9 +492,9 @@ model.add(Dense(n,kernel_regularizer=regularizers.l2(0.005), activation='softmax
 
 # model = Model(inputs=inception.input, outputs=predictions)
 # model.compile(optimizer=SGD(lr=0.0001, momentum=0.9), loss='categorical_crossentropy', metrics=['accuracy'])
-model.compile(optimizer=Adam  (), loss='categorical_crossentropy', metrics=['accuracy'])
+# model.compile(optimizer=Adam  (), loss='categorical_crossentropy', metrics=['accuracy'])
 
-# model = keras.models.load_model('best_model_101class.hdf5')
+model = keras.models.load_model('best_model_101class.hdf5')
 checkpointer = ModelCheckpoint(filepath='best_model_101class.hdf5', verbose=1, save_best_only=True)
 csv_logger = CSVLogger('history.log')
 
@@ -502,7 +502,7 @@ history_11class = model.fit(train_generator,
                     steps_per_epoch = nb_train_samples // batch_size,
                     validation_data=validation_generator,
                     validation_steps=nb_validation_samples // batch_size,
-                    epochs=40,
+                    epochs=1,
                     verbose=1,
                     callbacks=[csv_logger, checkpointer])
 
@@ -513,8 +513,8 @@ model.save('model_trained_101class.hdf5')
 
 
 
-plot_accuracy(history_11class,'FOOD101-EfficientNetB3')
-plot_loss(history_11class,'FOOD101-EfficientNetB3')
+plot_accuracy(history_11class,'FOOD101-InceptionV3')
+plot_loss(history_11class,'FOOD101-InceptionV3')
 
 
 # In[ ]:
