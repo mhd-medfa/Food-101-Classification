@@ -261,7 +261,7 @@ n_classes = n
 # img_width, img_height = 299, 299
 img_width, img_height = 300, 300
 
-train_data_dir = 'food-101/train'
+train_data_dir = 'food-101/train_noisy_student'
 validation_data_dir = 'food-101/test'
 nb_train_samples = 75750 #8250 #75750
 nb_validation_samples = 25250 #2750 #25250
@@ -326,8 +326,8 @@ model.add(Dense(128,activation='relu'))
 model.add(Dropout(0.2))
 model.add(Dense(n,kernel_regularizer=regularizers.l2(0.005), activation='softmax'))
 
-model = keras.models.load_model('best_model_101class.hdf5')
-checkpointer = ModelCheckpoint(filepath='best_model_101class.hdf5', verbose=1, save_best_only=True)
+# model = keras.models.load_model('best_model_101class.hdf5')
+checkpointer = ModelCheckpoint(filepath='student_net_1_model_101class.hdf5', verbose=1, save_best_only=True)
 csv_logger = CSVLogger('history.log')
 
 history_11class = model.fit(train_generator,

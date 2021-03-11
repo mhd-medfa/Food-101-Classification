@@ -103,7 +103,7 @@ plt.tight_layout()
 # ### Split the image data into train and test using train.txt and test.txt
 
 # Helper method to split dataset into train and test folders
-from shutil import copy
+from shutil import copy, copytree, rmtree
 def prepare_data(filepath, src,dest):
   classes_images = defaultdict(list)
   with open(filepath, 'r') as txt:
@@ -135,7 +135,24 @@ def pseudo_labelled_dataset(food_images, food_labels, dest):
     im.save(file_name)
 
 
+def pseudo_labelled_ds_balancer(q, mod, label, dest):
+  dir_name = dest+'/'+label
+  dir_name_tmp = dest+'/'+label+'2'
 
+  for i in range(q+1):
+    num_files = len(os.listdir(dir_name))
+    for j in range(num_files):
+      copy(dir_name+'/'+str(j)+'.jpg', dir_name_tmp+'/'+str(j+num_files*i)+'.jpg')
+      
+  rmtree(dir_name)
+  os.rename(dir_name, dir_name_tmp)
+  os.rename()
+
+  for idx in range(mod):
+    file_name = dest+'/'+label+'/'+str(idx)+'.jpg'
+    new_file_name = dest+'/'+label+'/'+str(idx+len(os.listdir(dest+'/'+label)))+'.jpg'
+    copy(file_name, new_file_name)
+    
 # Prepare train dataset by copying images from food-101/images to food-101/train using the file train.txt
 print("Creating train data...")
 # prepare_data('food-101/meta/train.txt', 'food-101/images', 'food-101/train')
@@ -329,6 +346,7 @@ validation_generator = test_datagen.flow_from_directory(
     validation_data_dir,
     target_size=(img_height, img_width),
     batch_size=batch_size,
+    shuffle=False,
     class_mode='categorical')
 
 
@@ -350,7 +368,7 @@ model.add(Dense(n,kernel_regularizer=regularizers.l2(0.005), activation='softmax
 # Loading the best saved model to make predictions
 from tensorflow.keras.models import load_model
 K.clear_session()
-model_best = load_model('best_model_101class_data_aug_lvl_2.hdf5',compile = False)
+model_best = load_model('best_model_101class_rand_augment_final.hdf5',compile = False)
 y_trues = []
 y_true = []
 # batches = 0
@@ -371,31 +389,38 @@ predictions = []
 y_train_dummies = []
 y_student_all_dummy_label = []
 acc_history = {}
-batches=0
-for gen in tqdm(validation_generator):
-  X,_ = gen
-  y_pred = model_best.predict(X, verbose=1)
-  #Thresholding
-  threhold = 0.9
-  y_train_dummy_th =  y_pred[np.max(y_pred, axis=1) > threhold]
-  X_train_th = X[np.max(y_pred, axis=1) > threhold]
-  dest_train = 'food-101/train_noisy_student'
-  y_train_dummy = []
-  prediction = []
-  y_student_dummy_label = []
-  for yi in y_train_dummy_th:
-    prediction.append(yi)
-    y_train_dummy.append(foods_sorted[np.argmax(yi)])
-    y_student_dummy_label.append(np.argmax(yi))
-  y_train_dummies.extend(y_train_dummy)
-  predictions.extend(prediction)
-  y_student_all_dummy_label.extend(y_student_dummy_label)
-  pseudo_labelled_dataset(X_train_th, y_train_dummy,dest_train)
-  batches += 1
-  if batches >= nb_validation_samples / batch_size:
-    # we need to break the loop by hand because
-    # the generator loops indefinitely
-    break
+# batches=0
+for class_i in os.listdir(validation_data_dir):
+  for img_name in tqdm(os.listdir(validation_data_dir+'/'+class_i)):
+    # X = plt.imread(validation_data_dir+'/'+class_i+'/'+img_name).(img_width, img_height, 3)
+    X = tf.keras.preprocessing.image.load_img(
+          validation_data_dir+'/'+class_i+'/'+img_name, grayscale=False, color_mode="rgb", target_size=(img_width, img_height, 3), interpolation="nearest"
+          )
+    X = keras.preprocessing.image.img_to_array(X)
+    X = np.array([X])  # Convert single image to a batch.
+
+    y_pred = model_best.predict(X, verbose=1)
+    #Thresholding
+    threhold = 0.1
+    y_train_dummy_th =  y_pred[np.max(y_pred, axis=1) > threhold]
+    X_train_th = X[np.max(y_pred, axis=1) > threhold]
+    dest_train = 'food-101/train_noisy_student'
+    y_train_dummy = []
+    prediction = []
+    y_student_dummy_label = []
+    for yi in y_train_dummy_th:
+      prediction.append(yi)
+      y_train_dummy.append(foods_sorted[np.argmax(yi)])
+      y_student_dummy_label.append(np.argmax(yi))
+    y_train_dummies.extend(y_train_dummy)
+    predictions.extend(prediction)
+    y_student_all_dummy_label.extend(y_student_dummy_label)
+    pseudo_labelled_dataset(X_train_th, y_train_dummy,dest_train)
+    # batches += 1
+    # if batches >= nb_validation_samples / batch_size:
+    #   # we need to break the loop by hand because
+    #   # the generator loops indefinitely
+    #   break
 
 u, counts = np.unique(predictions, return_counts=True)
 
@@ -422,17 +447,18 @@ for i in range(101):
 y_student_per_label_add = []
 y_student_per_img_add = []
 
-# for i in range(101):
-#     num = y_student_per_label[i].shape[0]
-#     temp_l = y_student_per_label[i]
-#     add_num = student_label_max - num
-#     q, mod = divmod(add_num, num)
-#     print(q, mod)
-#     temp_l_tile = np.tile(temp_l, (q+1, 1))
-#     temp_i_tile = np.tile(temp_i, (q+1, 1, 1, 1))
-#     temp_l_add = temp_l[:mod]
-#     temp_i_add = temp_i[:mod]
-#     y_student_per_label_add.append(np.concatenate([temp_l_tile, temp_l_add], axis=0))
-#     y_student_per_img_add.append(np.concatenate([temp_i_tile, temp_i_add], axis=0))
+for i in range(101):
+    num = y_student_per_label[i].shape[0]
+    temp_l = y_student_per_label[i]
+    add_num = student_label_max - num
+    q, mod = divmod(add_num, num)
+    print(q, mod)
+    pseudo_labelled_ds_balancer(q, mod, foods_sorted[i], dest_train)
+    # temp_l_tile = np.tile(temp_l, (q+1, 1))
+    # temp_i_tile = np.tile(temp_i, (q+1, 1, 1, 1))
+    # temp_l_add = temp_l[:mod]
+    # temp_i_add = temp_i[:mod]
+    # y_student_per_label_add.append(np.concatenate([temp_l_tile, temp_l_add], axis=0))
+    # y_student_per_img_add.append(np.concatenate([temp_i_tile, temp_i_add], axis=0))
 
 
