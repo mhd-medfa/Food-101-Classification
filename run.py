@@ -7,7 +7,7 @@
 
 # ### Download and extract Food 101 Dataset
 
-# In[1]:
+
 
 # Check flags that fits your purpose of running the code
 load_model_flag = True
@@ -25,13 +25,13 @@ from rand_augmentation import *
 from utils import *
 
 
-# In[3]:
+
 
 
 # !rm -r food-101/
 
 
-# In[5]:
+
 
 
 # Helper function to download data and extract
@@ -52,14 +52,13 @@ from IPython.display import clear_output
 
 # * **Grab a coffee, this is going to take some time..**
 
-# In[6]:
+
 
 
 # Download data and extract it to folder
 # get_data_extract()
 
 
-# In[7]:
 
 
 # get_ipython().system('rm food-101.tar.gz')
@@ -75,7 +74,6 @@ from IPython.display import clear_output
 # ***On purpose, the training images were not cleaned, and thus still contain some amount of noise. This comes mostly in the form of intense colors and sometimes wrong labels. All images were rescaled to have a maximum side length of 512 pixels.***  
 # * **The entire dataset is 5GB in size**
 
-# In[8]:
 
 
 # Check the extracted dataset folder
@@ -85,7 +83,6 @@ from IPython.display import clear_output
 # **images** folder contains 101 folders with 1000 images  each  
 # Each folder contains images of a specific food class
 
-# In[9]:
 
 
 import os
@@ -97,19 +94,19 @@ os.listdir('food-101/images')
 # **test.txt** contains the list of images that belong to test set  
 # **classes.txt** contains the list of all classes of food
 
-# In[10]:
+
 
 
 os.listdir('food-101/meta')
 
 
-# In[11]:
+
 
 
 # get_ipython().system('head food-101/meta/train.txt')
 
 
-# In[12]:
+
 
 
 # get_ipython().system('head food-101/meta/classes.txt')
@@ -117,7 +114,7 @@ os.listdir('food-101/meta')
 
 # ### Visualize random image from each of the 101 classes
 
-# In[13]:
+
 
 
 import matplotlib.pyplot as plt
@@ -129,7 +126,7 @@ import collections
 import os
 import utils
 
-# In[14]:
+
 
 
 # Visualize the data, showing one image per class from 101 classes
@@ -160,7 +157,7 @@ plt.tight_layout()
 
 # ### Split the image data into train and test using train.txt and test.txt
 
-# In[15]:
+
 
 
 # Helper method to split dataset into train and test folders
@@ -184,7 +181,7 @@ def prepare_data(filepath, src,dest):
   print("Copying Done!")
 
 
-# In[16]:
+
 
 
 # Prepare train dataset by copying images from food-101/images to food-101/train using the file train.txt
@@ -192,7 +189,7 @@ print("Creating train data...")
 # prepare_data('food-101/meta/train.txt', 'food-101/images', 'food-101/train')
 
 
-# In[17]:
+
 
 
 # Prepare test data by copying images from food-101/images to food-101/test using the file test.txt
@@ -200,13 +197,12 @@ print("Creating test data...")
 # prepare_data('food-101/meta/test.txt', 'food-101/images', 'food-101/test')
 
 
-# In[18]:
+
 
 
 # !rm -r food-101/images
 
 
-# In[19]:
 
 
 # Check how many files are in the train folder
@@ -214,7 +210,7 @@ print("Creating test data...")
 # get_ipython().system("find food-101/train -type d -or -type f -printf '.' | wc -c")
 
 
-# In[20]:
+
 
 
 # Check how many files are in the test folder
@@ -227,7 +223,7 @@ print("Creating test data...")
 
 # # ### Visualize the accuracy and loss plots
 
-# In[ ]:
+
 
 
 import matplotlib.pyplot as plt
@@ -251,7 +247,7 @@ def plot_loss(history,title):
 
 # # ### Predicting classes for new images from internet using the best trained model
 
-# In[ ]:
+
 
 
 # # Loading the best saved model to make predictions
@@ -266,7 +262,7 @@ def plot_loss(history,title):
 # # * **Setting compile=False and clearing the session leads to faster loading of the saved model**
 # # * **Withouth the above addiitons, model loading was taking more than a minute!**
 
-# In[ ]:
+
 
 
 from tensorflow.keras.preprocessing import image
@@ -292,7 +288,7 @@ def predict_class(model, images, show = True):
         plt.show()
 
 
-# In[ ]:
+
 
 
 # # Downloading images from internet using the URLs
@@ -306,7 +302,7 @@ def predict_class(model, images, show = True):
 # # image = files.upload()
 
 
-# In[ ]:
+
 
 
 # # Make a list of downloaded images and test the trained model
@@ -329,7 +325,7 @@ def predict_class(model, images, show = True):
 # * **But to check how the model performs when more classes are included, I'm using the same model to fine tune and train on 11 randomly chosen classes**
 # 
 
-# In[25]:
+
 
 
 # Helper function to select n random food classes
@@ -345,15 +341,13 @@ def pick_n_random_classes(n):
   
 
 
-# In[26]:
-
 
 # Lets try with more classes than just 3. Also, this time lets randomly pick the food classes
 n = 101
 food_list = pick_n_random_classes(n)
 
 
-# In[20]:
+
 
 
 # Create the new data subset of n classes
@@ -361,40 +355,40 @@ food_list = pick_n_random_classes(n)
 # dataset_mini(food_list, src_train, dest_train)
 
 
-# In[21]:
+
 
 
 # print("Total number of samples in train folder")
 # get_ipython().system("find food-101/train_mini -type d -or -type f -printf '.' | wc -c")
 
 
-# In[ ]:
+
 
 
 # print("Creating test data folder with new classes")
 # dataset_mini(food_list, src_test, dest_test)
 
 
-# In[ ]:
+
 
 
 # print("Total number of samples in test folder")
 # get_ipython().system("find food-101/test_mini -type d -or -type f -printf '.' | wc -c")
 
 
-# In[ ]:
+
 
 
 # get_ipython().system('ls food-101/')
 
 
-# In[ ]:
+
 
 
 n = 101
 
 
-# In[28]:
+
 
 
 # Let's use a pretrained Inceptionv3 model on subset of data with 11 food classes
@@ -444,8 +438,7 @@ train_datagen = ImageDataGenerator(
 	horizontal_flip=True,
 	fill_mode="nearest")
 
-# train_datagen = ImageDataGenerator(
-#   rescale=1. / 255)
+
 
 test_datagen = ImageDataGenerator(rescale=1. / 255)
 
@@ -514,7 +507,6 @@ if train_model_flag== True:
 	plot_loss(history_101class,'FOOD101-InceptionV3')
 
 
-# In[ ]:
 
 
 # Loading the best saved model to make predictions
@@ -524,7 +516,7 @@ K.clear_session()
 model_best = load_model('best_model_101class.hdf5',compile = False)
 
 
-# In[ ]:
+
 
 # If you have an image in your local computer and want to try it, uncomment the below code to upload the image files
 
@@ -533,7 +525,7 @@ model_best = load_model('best_model_101class.hdf5',compile = False)
 # image = files.upload()
 
 
-# In[ ]:
+
 
 
 # Make a list of downloaded images and test the trained model
