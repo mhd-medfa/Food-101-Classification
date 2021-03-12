@@ -241,15 +241,16 @@ def plot_log(filename, show=True):
 
 def predict_class(model, images, show = True):
   for img in images:
-    img = image.load_img(img, target_size=(299, 299))
-    img = image.img_to_array(img)                    
+    img = image.load_img(img, target_size=(299, 299), color_mode='rgb')
+    img = image.img_to_array(img, dtype=np.uint8)                    
     img = np.expand_dims(img, axis=0)         
-    img /= 255.                                      
+    # img /= 255.                                      
 
     pred = model.predict(img)
     index = np.argmax(pred)
-    food_list.sort()
-    pred_value = food_list[index]
+    foods_sorted = sorted(os.listdir(data_dir))
+
+    pred_value = foods_sorted[index]
     if show:
         plt.imshow(img[0])                           
         plt.axis('off')
@@ -338,65 +339,83 @@ model.add(Dense(n,kernel_regularizer=regularizers.l2(0.005), activation='softmax
 from tensorflow.keras.models import load_model
 K.clear_session()
 model_best = load_model('best_model_101class_rand_augment_final.hdf5',compile = False)
-y_trues = []
-y_true = []
-batches = 0
-for gen in tqdm(validation_generator):
-  _,y = gen
-  for yi in y:
-    y_true.append(np.argmax(yi))
-  batches += 1
-  if batches >= nb_validation_samples / batch_size:
-    # we need to break the loop by hand because
-    # the generator loops indefinitely
-    break
+# y_trues = []
+# y_true = []
+# batches = 0
+# for gen in tqdm(validation_generator):
+#   _,y = gen
+#   for yi in y:
+#     y_true.append(np.argmax(yi))
+#   batches += 1
+#   if batches >= nb_validation_samples / batch_size:
+#     # we need to break the loop by hand because
+#     # the generator loops indefinitely
+#     break
 
-y_trues.extend(y_true)
+# y_trues.extend(y_true)
+
+# =======================================
+"""TTA"""
+# predictions = []
+# acc_history = {}
+
+# transforms = ['rotate', 'shearX', 'shearY', 'translateX', 'translateY']
 
 
-predictions = []
-acc_history = {}
-
-transforms = ['rotate', 'shearX', 'shearY', 'translateX', 'translateY']
-
-
-prediction = model_best.predict_generator(validation_generator, verbose=1)
-predictions.append(prediction)
-k = (np.argmax(prediction, axis=-1)==y_true)
-acc = sum(k)/len(k)
-acc_history["base"] = acc
-for idx, transform in enumerate(transforms):
-  datagen = Test_Time_Augmentation(Magnitude=3, OP_NAME=transform)
-  data_generator = datagen.flow_from_directory(
-                      validation_data_dir,
-                      target_size=(img_height, img_width),
-                      batch_size=batch_size,
-                      class_mode='categorical')
+# prediction = model_best.predict_generator(validation_generator, verbose=1)
+# predictions.append(prediction)
+# k = (np.argmax(prediction, axis=-1)==y_true)
+# acc = sum(k)/len(k)
+# acc_history["base"] = acc
+# for idx, transform in enumerate(transforms):
+#   datagen = Test_Time_Augmentation(Magnitude=3, OP_NAME=transform)
+#   data_generator = datagen.flow_from_directory(
+#                       validation_data_dir,
+#                       target_size=(img_height, img_width),
+#                       batch_size=batch_size,
+#                       class_mode='categorical')
   
-  y_true = []
-  batches = 0
-  for gen in tqdm(data_generator):
-    _,y = gen
-    for yi in y:
-      y_true.append(np.argmax(yi))
-    batches += 1
-    if batches >= nb_validation_samples / batch_size:
-      # we need to break the loop by hand because
-      # the generator loops indefinitely
-      break
-  y_trues.extend(y_true)
+#   y_true = []
+#   batches = 0
+#   for gen in tqdm(data_generator):
+#     _,y = gen
+#     for yi in y:
+#       y_true.append(np.argmax(yi))
+#     batches += 1
+#     if batches >= nb_validation_samples / batch_size:
+#       # we need to break the loop by hand because
+#       # the generator loops indefinitely
+#       break
+#   y_trues.extend(y_true)
 
-  prediction = model_best.predict_generator(data_generator, verbose=1,callbacks=[csv_logger])
-  k = (np.argmax(prediction, axis=-1)==y_true)
-  acc = sum(k)/len(k)
-  acc_history[transform]=acc
+#   prediction = model_best.predict_generator(data_generator, verbose=1)
+#   k = (np.argmax(prediction, axis=-1)==y_true)
+#   acc = sum(k)/len(k)
+#   acc_history[transform]=acc
 
-  with open('tta_acc_history.json', 'w') as fp:
-    json.dump(acc_history, fp)
+#   with open('tta_acc_history.json', 'w') as fp:
+#     json.dump(acc_history, fp)
 
-  predictions.append(prediction)
+#   predictions.append(prediction)
 
-predictions = np.stack(predictions)
+# predictions = np.stack(predictions)
 
 # acc_history = agg_preds(predictions)
+"""End-TTA"""
+# =======================================
 
+plot_log('history_student_1_epochs_15.log')
+# plot_accuracy_csv_log('history_student_1_epochs_15.log','FOOD101-InceptionV3')
+# plot_loss_csv_log('history_student_1_epochs_15.log','FOOD101-InceptionV3')
+
+
+
+# Make a list of downloaded images and test the trained model
+images = []
+images.append('data/frenchfries.jpg')
+images.append('data/caesar.jpg')
+images.append('data/25.jpg')
+images.append('data/cupcake.jpg')
+images.append('data/falafel.jpg')
+# images.append('data/waffles.jpg')
+predict_class(model_best, images, True)

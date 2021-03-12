@@ -70,8 +70,12 @@ rows = 17
 cols = 6
 fig, ax = plt.subplots(rows, cols, figsize=(25,25))
 fig.suptitle("Showing one random image from each class", y=1.05, fontsize=24) # Adding  y=1.05, fontsize=24 helped me fix the suptitle overlapping with axes issue
-data_dir = "food-101/images/"
-foods_sorted = sorted(os.listdir(data_dir))
+# data_dir = "food-101/images/"
+# data_dir = "food-101/images"
+train_data_dir = 'food-101/train_noisy_student'
+data_dir = train_data_dir
+validation_data_dir = 'food-101/test'
+foods_sorted = sorted(os.listdir(train_data_dir))
 food_id = 0
 for i in range(rows):
   for j in range(cols):
@@ -230,10 +234,11 @@ def pick_n_random_classes(n):
   print("These are the randomly picked food classes we will be training the model on...\n", food_list)
   return food_list
 
-
+train_data_dir = 'food-101/train_noisy_student'
+validation_data_dir = 'food-101/test_noisy_student'
 # Lets try with more classes than just 3. Also, this time lets randomly pick the food classes
-n = 101
-food_list = pick_n_random_classes(n)
+food_list = os.listdir(train_data_dir)#pick_n_random_classes(n)
+n = len(food_list)
 
 
 # Let's use a pretrained Inceptionv3 model on subset of data with 11 food classes
@@ -258,13 +263,12 @@ import numpy as np
 K.clear_session()
 
 n_classes = n
-# img_width, img_height = 299, 299
-img_width, img_height = 300, 300
+img_width, img_height = 299, 299
+# img_width, img_height = 300, 300
 
-train_data_dir = 'food-101/train_noisy_student'
-validation_data_dir = 'food-101/test'
-nb_train_samples = 75750 #8250 #75750
-nb_validation_samples = 25250 #2750 #25250
+
+nb_train_samples = 25000 #8250 #75750
+nb_validation_samples = 25000 #2750 #25250
 batch_size = 16
 
 # train_datagen = ImageDataGenerator(
@@ -326,15 +330,16 @@ model.add(Dense(128,activation='relu'))
 model.add(Dropout(0.2))
 model.add(Dense(n,kernel_regularizer=regularizers.l2(0.005), activation='softmax'))
 
-# model = keras.models.load_model('best_model_101class.hdf5')
+model = keras.models.load_model('student_net_1_model_101class.hdf5')
 checkpointer = ModelCheckpoint(filepath='student_net_1_model_101class.hdf5', verbose=1, save_best_only=True)
 csv_logger = CSVLogger('history.log')
+# model.compile(optimizer=SGD(lr=0.0001, momentum=0.9), loss='categorical_crossentropy', metrics=['accuracy'])
 
 history_11class = model.fit(train_generator,
                     steps_per_epoch = nb_train_samples // batch_size,
                     validation_data=validation_generator,
                     validation_steps=nb_validation_samples // batch_size,
-                    epochs=1,
+                    epochs=15,
                     verbose=1,
                     callbacks=[csv_logger, checkpointer])
 
